@@ -2,21 +2,17 @@ const DB_NAME = 'shiguang-archive';
 const STORE = 'memories';
 let selectedPhoto = '';
 let pendingDeleteId = null;
-
 const $ = (selector) => document.querySelector(selector);
-const form = $('#entryForm');
-const photoInput = $('#photoInput');
-const photoPreview = $('#photoPreview');
-const uploadPlaceholder = $('#uploadPlaceholder');
-const storyInput = $('#storyInput');
-const dateInput = $('#dateInput');
-const timeline = $('#timeline');
-const emptyState = $('#emptyState');
-const recordCount = $('#recordCount');
-const searchInput = $('#searchInput');
-const deleteDialog = $('#deleteDialog');
 
-dateInput.value = new Date().toISOString().slice(0, 10);
+function route() {
+  const studio = location.hash === '#studio';
+  $('#welcomeView').hidden = studio;
+  $('#studioView').hidden = !studio;
+  document.body.style.overflow = '';
+  scrollTo({ top: 0, behavior: 'instant' });
+  if (studio) render();
+}
+addEventListener('hashchange', route);
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -49,7 +45,17 @@ function escapeHTML(text = '') {
 }
 
 function formatDate(value) {
-  return new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(`${value}T00:00:00`));
+  if (!value) return '';
+  const parts = value.split('-');
+  return `${Number(parts[1])}月${Number(parts[2])}日`;
+}
+
+function showToast(message) {
+  const toast = $('#toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
 function compressImage(file) {
@@ -74,87 +80,111 @@ function compressImage(file) {
   });
 }
 
-photoInput.addEventListener('change', async () => {
-  const file = photoInput.files[0];
+const memoryDialog = $('#memoryDialog');
+const form = $('#memoryForm');
+const photoPreview = $('#photoPreview');
+const uploadPlaceholder = $('#uploadPlaceholder');
+$('#dateInput').value = new Date().toISOString().slice(0, 10);
+
+function openDialog() {
+  $('#formStatus').textContent = '';
+  memoryDialog.showModal();
+}
+$('#openMemoryDialog').addEventListener('click', openDialog);
+$('#openFirstMemory').addEventListener('click', openDialog);
+$('#closeMemoryDialog').addEventListener('click', () => memoryDialog.close());
+
+$('#photoInput').addEventListener('change', async (event) => {
+  const file = event.target.files[0];
   if (!file) return;
-  $('#formNote').textContent = '正在整理照片…';
+  if (file.size > 8 * 1024 * 1024) {
+    $('#formStatus').textContent = '图片不能超过 8MB。';
+    event.target.value = '';
+    return;
+  }
+  $('#formStatus').textContent = '正在整理照片…';
   try {
     selectedPhoto = await compressImage(file);
     photoPreview.src = selectedPhoto;
     photoPreview.hidden = false;
     uploadPlaceholder.hidden = true;
-    $('#formNote').textContent = '';
+    $('#formStatus').textContent = '';
   } catch {
-    $('#formNote').textContent = '这张照片暂时无法读取，请换一张试试。';
+    $('#formStatus').textContent = '这张照片暂时无法读取，请换一张试试。';
   }
 });
-
-storyInput.addEventListener('input', () => $('#storyCount').value = storyInput.value.length);
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const record = {
     id: crypto.randomUUID(),
     createdAt: Date.now(),
-    date: dateInput.value,
+    title: $('#titleInput').value.trim(),
+    body: $('#bodyInput').value.trim(),
+    date: $('#dateInput').value,
+    location: $('#locationInput').value.trim(),
     mood: $('#moodInput').value,
-    place: $('#placeInput').value.trim(),
-    story: storyInput.value.trim(),
     photo: selectedPhoto
   };
   try {
     await put(record);
     form.reset();
-    dateInput.value = new Date().toISOString().slice(0, 10);
+    $('#dateInput').value = new Date().toISOString().slice(0, 10);
     selectedPhoto = '';
     photoPreview.hidden = true;
     photoPreview.removeAttribute('src');
     uploadPlaceholder.hidden = false;
-    $('#storyCount').value = 0;
-    $('#formNote').textContent = '已经收藏进你的档案馆。';
-    setTimeout(() => $('#formNote').textContent = '', 2200);
+    memoryDialog.close();
     await render();
+    showToast('记忆已私密保存');
   } catch {
-    $('#formNote').textContent = '保存失败，可能是浏览器存储空间已满。请先导出备份。';
+    $('#formStatus').textContent = '保存失败，可能是浏览器存储空间已满。请先导出备份。';
   }
 });
 
 async function render() {
-  const query = searchInput.value.trim().toLowerCase();
-  const records = (await getAll()).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
-  const filtered = records.filter((item) => `${item.story} ${item.place} ${item.mood}`.toLowerCase().includes(query));
-  recordCount.value = records.length;
-  emptyState.hidden = filtered.length > 0;
-  timeline.innerHTML = filtered.map((item) => `
-    <article class="memory-card">
-      ${item.photo ? `<img class="memory-image" src="${item.photo}" alt="${escapeHTML(item.story.slice(0, 28) || '生活记录照片')}">` : '<div class="no-photo">✿</div>'}
-      <div class="memory-body">
-        <div class="memory-meta"><span>${formatDate(item.date)}</span><span>${escapeHTML(item.mood)}</span></div>
-        <p class="memory-story">${escapeHTML(item.story)}</p>
-        <div class="memory-footer"><span>${item.place ? `⌖ ${escapeHTML(item.place)}` : '未记录地点'}</span><button class="delete-button" data-delete="${item.id}" type="button" aria-label="删除这条记录">删除</button></div>
+  const records = (await getAll()).sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
+  $('#memoryCount').textContent = records.length;
+  $('#photoCount').textContent = records.filter((item) => item.photo).length;
+  $('#archiveSummary').textContent = records.length ? `已收藏 ${records.length} 段记忆` : '从第一段记忆开始';
+  $('#archiveEmpty').hidden = records.length > 0;
+  const grid = $('#archiveGrid');
+  grid.hidden = records.length === 0;
+  grid.innerHTML = records.map((item) => {
+    const title = item.title || item.story || '生活的一页';
+    const body = item.body || item.story || '';
+    const location = item.location || item.place || '';
+    return `<article class="archive-card">
+      ${item.photo ? `<figure><img src="${item.photo}" alt="${escapeHTML(title)}"></figure>` : '<div class="no-photo"><span>这一页没有照片，<br>文字替你记得。</span></div>'}
+      <div class="archive-card-body">
+        <div class="card-status"><span>仅自己可见</span><time>${formatDate(item.date)}</time></div>
+        <h3>${escapeHTML(title)}</h3><p>${escapeHTML(body)}</p>
+        <div class="memory-meta">${location ? `<span>⌖ ${escapeHTML(location)}</span>` : ''}<span>☺ ${escapeHTML(item.mood || '平静')}</span></div>
+        <div class="card-actions"><button class="delete-action" data-delete="${item.id}" type="button">删除</button></div>
       </div>
-    </article>`).join('');
+    </article>`;
+  }).join('');
 }
 
-searchInput.addEventListener('input', render);
-timeline.addEventListener('click', (event) => {
+$('#archiveGrid').addEventListener('click', (event) => {
   const button = event.target.closest('[data-delete]');
   if (!button) return;
   pendingDeleteId = button.dataset.delete;
-  deleteDialog.showModal();
+  $('#deleteDialog').showModal();
 });
 
-deleteDialog.addEventListener('close', async () => {
-  if (deleteDialog.returnValue === 'confirm' && pendingDeleteId) {
+$('#deleteDialog').addEventListener('close', async () => {
+  if ($('#deleteDialog').returnValue === 'confirm' && pendingDeleteId) {
     await remove(pendingDeleteId);
     await render();
+    showToast('这段记录已删除');
   }
   pendingDeleteId = null;
 });
 
 $('#exportButton').addEventListener('click', async () => {
   const records = await getAll();
-  const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), records }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ version: 2, exportedAt: new Date().toISOString(), records }, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `拾光档案馆备份-${new Date().toISOString().slice(0, 10)}.json`;
@@ -170,11 +200,12 @@ $('#importInput').addEventListener('change', async (event) => {
     if (!Array.isArray(data.records)) throw new Error('invalid');
     for (const record of data.records) await put(record);
     await render();
+    showToast('备份已导入');
   } catch {
-    alert('这不是有效的拾光档案馆备份文件。');
+    showToast('这不是有效的备份文件');
   } finally {
     event.target.value = '';
   }
 });
 
-render();
+route();
