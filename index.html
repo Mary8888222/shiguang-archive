@@ -76,7 +76,12 @@
       <button class="dialog-close" type="button" id="closeMemoryDialog" aria-label="关闭">×</button>
       <header><h2>收藏一段生活</h2><p>文字和照片会进入你自己的档案空间。</p></header>
       <div class="memory-form">
-        <label class="upload-zone" for="photoInput"><img id="photoPreview" alt="照片预览" hidden><span id="uploadPlaceholder"><svg viewBox="0 0 24 24"><path d="M16 5h6m-3-3v6M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/><circle cx="9" cy="9" r="2"/></svg><b>选择一张照片</b><small>支持 JPG、PNG、WebP，最大 8MB</small></span><input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp"></label>
+        <div class="upload-zone">
+          <label class="upload-picker" for="photoInput" id="uploadPlaceholder"><svg viewBox="0 0 24 24"><path d="M16 5h6m-3-3v6M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/><circle cx="9" cy="9" r="2"/></svg><b>一次选择多张照片</b><small>支持 JPG、PNG、WebP，单张最大 8MB，最多 12 张</small></label>
+          <div class="photo-preview-grid" id="photoPreviewGrid" hidden></div>
+          <div class="photo-picker-actions" id="photoPickerActions" hidden><label for="photoInput">＋ 继续添加</label><span id="photoSelectionCount">已选 0 张</span></div>
+          <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+        </div>
         <label>标题<input id="titleInput" maxlength="80" required placeholder="这一刻，发生了什么？"></label>
         <label>想记住的话<textarea id="bodyInput" maxlength="3000" rows="4" placeholder="写下那些不想忘记的细节……"></textarea></label>
         <div class="form-row"><label>日期<input id="dateInput" type="date"></label><label>地点<input id="locationInput" maxlength="80" placeholder="重庆"></label></div>

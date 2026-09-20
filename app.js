@@ -1,6 +1,6 @@
 const DB_NAME = 'shiguang-archive';
 const STORE = 'memories';
-let selectedPhoto = '';
+let selectedPhotos = [];
 let pendingDeleteId = null;
 const $ = (selector) => document.querySelector(selector);
 
@@ -82,8 +82,9 @@ function compressImage(file) {
 
 const memoryDialog = $('#memoryDialog');
 const form = $('#memoryForm');
-const photoPreview = $('#photoPreview');
 const uploadPlaceholder = $('#uploadPlaceholder');
+const photoPreviewGrid = $('#photoPreviewGrid');
+const photoPickerActions = $('#photoPickerActions');
 $('#dateInput').value = new Date().toISOString().slice(0, 10);
 
 function openDialog() {
@@ -94,23 +95,40 @@ $('#openMemoryDialog').addEventListener('click', openDialog);
 $('#openFirstMemory').addEventListener('click', openDialog);
 $('#closeMemoryDialog').addEventListener('click', () => memoryDialog.close());
 
+function renderSelectedPhotos() {
+  const hasPhotos = selectedPhotos.length > 0;
+  uploadPlaceholder.hidden = hasPhotos;
+  photoPreviewGrid.hidden = !hasPhotos;
+  photoPickerActions.hidden = !hasPhotos;
+  $('#photoSelectionCount').textContent = `已选 ${selectedPhotos.length} 张`;
+  photoPreviewGrid.innerHTML = selectedPhotos.map((src, index) => `<div class="photo-preview-item"><img src="${src}" alt="第 ${index + 1} 张照片预览"><button type="button" data-remove-photo="${index}" aria-label="移除第 ${index + 1} 张照片">×</button></div>`).join('');
+}
+
+photoPreviewGrid.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-remove-photo]');
+  if (!button) return;
+  selectedPhotos.splice(Number(button.dataset.removePhoto), 1);
+  renderSelectedPhotos();
+});
+
 $('#photoInput').addEventListener('change', async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-  if (file.size > 8 * 1024 * 1024) {
-    $('#formStatus').textContent = '图片不能超过 8MB。';
-    event.target.value = '';
-    return;
-  }
-  $('#formStatus').textContent = '正在整理照片…';
+  const files = [...event.target.files];
+  event.target.value = '';
+  if (!files.length) return;
+  const available = 12 - selectedPhotos.length;
+  if (available <= 0) return showToast('每段记忆最多保存 12 张照片');
+  const accepted = files.slice(0, available);
+  const oversized = accepted.filter((file) => file.size > 8 * 1024 * 1024);
+  const valid = accepted.filter((file) => file.size <= 8 * 1024 * 1024);
+  if (oversized.length) showToast(`${oversized.length} 张照片超过 8MB，已跳过`);
+  $('#formStatus').textContent = `正在整理 ${valid.length} 张照片…`;
   try {
-    selectedPhoto = await compressImage(file);
-    photoPreview.src = selectedPhoto;
-    photoPreview.hidden = false;
-    uploadPlaceholder.hidden = true;
-    $('#formStatus').textContent = '';
+    for (const file of valid) selectedPhotos.push(await compressImage(file));
+    renderSelectedPhotos();
+    $('#formStatus').textContent = selectedPhotos.length ? `已准备 ${selectedPhotos.length} 张照片` : '';
+    if (files.length > available) showToast(`已达到 12 张上限，跳过 ${files.length - available} 张`);
   } catch {
-    $('#formStatus').textContent = '这张照片暂时无法读取，请换一张试试。';
+    $('#formStatus').textContent = '部分照片暂时无法读取，请换一张试试。';
   }
 });
 
@@ -124,16 +142,14 @@ form.addEventListener('submit', async (event) => {
     date: $('#dateInput').value,
     location: $('#locationInput').value.trim(),
     mood: $('#moodInput').value,
-    photo: selectedPhoto
+    photos: [...selectedPhotos]
   };
   try {
     await put(record);
     form.reset();
     $('#dateInput').value = new Date().toISOString().slice(0, 10);
-    selectedPhoto = '';
-    photoPreview.hidden = true;
-    photoPreview.removeAttribute('src');
-    uploadPlaceholder.hidden = false;
+    selectedPhotos = [];
+    renderSelectedPhotos();
     memoryDialog.close();
     await render();
     showToast('记忆已私密保存');
@@ -145,7 +161,7 @@ form.addEventListener('submit', async (event) => {
 async function render() {
   const records = (await getAll()).sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
   $('#memoryCount').textContent = records.length;
-  $('#photoCount').textContent = records.filter((item) => item.photo).length;
+  $('#photoCount').textContent = records.reduce((total, item) => total + photosFor(item).length, 0);
   $('#archiveSummary').textContent = records.length ? `已收藏 ${records.length} 段记忆` : '从第一段记忆开始';
   $('#archiveEmpty').hidden = records.length > 0;
   const grid = $('#archiveGrid');
@@ -154,16 +170,28 @@ async function render() {
     const title = item.title || item.story || '生活的一页';
     const body = item.body || item.story || '';
     const location = item.location || item.place || '';
+    const photos = photosFor(item);
     return `<article class="archive-card">
-      ${item.photo ? `<figure><img src="${item.photo}" alt="${escapeHTML(title)}"></figure>` : '<div class="no-photo"><span>这一页没有照片，<br>文字替你记得。</span></div>'}
+      ${photos.length ? renderGallery(photos, title) : '<div class="no-photo"><span>这一页没有照片，<br>文字替你记得。</span></div>'}
       <div class="archive-card-body">
-        <div class="card-status"><span>仅自己可见</span><time>${formatDate(item.date)}</time></div>
+        <div class="card-status"><span>仅自己可见</span><time>${formatDate(item.date)}${photos.length ? `<i class="photo-total">${photos.length} 张照片</i>` : ''}</time></div>
         <h3>${escapeHTML(title)}</h3><p>${escapeHTML(body)}</p>
         <div class="memory-meta">${location ? `<span>⌖ ${escapeHTML(location)}</span>` : ''}<span>☺ ${escapeHTML(item.mood || '平静')}</span></div>
         <div class="card-actions"><button class="delete-action" data-delete="${item.id}" type="button">删除</button></div>
       </div>
     </article>`;
   }).join('');
+}
+
+function photosFor(item) {
+  if (Array.isArray(item.photos)) return item.photos.filter(Boolean);
+  return item.photo ? [item.photo] : [];
+}
+
+function renderGallery(photos, title) {
+  const visible = photos.slice(0, 4);
+  const galleryClass = photos.length === 1 ? 'count-1' : photos.length === 2 ? 'count-2' : photos.length === 3 ? 'count-3' : 'count-many';
+  return `<div class="memory-gallery ${galleryClass}">${visible.map((src, index) => `<img src="${src}" alt="${escapeHTML(title)} · ${index + 1}">`).join('')}${photos.length > 4 ? `<span class="gallery-more">+${photos.length - 4}</span>` : ''}</div>`;
 }
 
 $('#archiveGrid').addEventListener('click', (event) => {
