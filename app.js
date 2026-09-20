@@ -17,12 +17,15 @@ const cropState = { ratio: 'original', rotation: 0, zoom: 1, x: 0, y: 0, baseSca
 const $ = (selector) => document.querySelector(selector);
 
 function route() {
+  const shared = location.hash.startsWith('#share=');
   const studio = location.hash === '#studio';
-  $('#welcomeView').hidden = studio;
+  $('#welcomeView').hidden = studio || shared;
   $('#studioView').hidden = !studio;
+  $('#sharedView').hidden = !shared;
   document.body.style.overflow = '';
   scrollTo({ top: 0, behavior: 'instant' });
   if (studio) render();
+  if (shared) renderSharedMemory();
 }
 addEventListener('hashchange', route);
 
@@ -60,6 +63,11 @@ function formatDate(value, includeYear = false) {
   if (!value) return '';
   const parts = value.split('-').map(Number);
   return includeYear ? `${parts[0]}年${parts[1]}月${parts[2]}日` : `${parts[1]}月${parts[2]}日`;
+}
+
+const MOOD_EMOJIS = { '平静': '😌', '开心': '😊', '期待': '✨', '感动': '🥹', '疲惫': '😮‍💨', '崩溃大哭': '😭' };
+function moodLabel(mood = '平静') {
+  return `${MOOD_EMOJIS[mood] || '😌'} ${mood}`;
 }
 
 function showToast(message) {
@@ -415,6 +423,7 @@ async function render() {
   currentRecords = (await getAll()).sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
   $('#memoryCount').textContent = currentRecords.length;
   $('#photoCount').textContent = currentRecords.reduce((total, item) => total + photosFor(item).length, 0);
+  $('#shareCount').textContent = currentRecords.filter((item) => item.sharedAt).length;
   $('#archiveSummary').textContent = currentRecords.length ? `已收藏 ${currentRecords.length} 段记忆` : '从第一段记忆开始';
   $('#archiveEmpty').hidden = currentRecords.length > 0;
   const grid = $('#archiveGrid');
@@ -429,8 +438,8 @@ async function render() {
       <div class="archive-card-body">
         <div class="card-status"><span>仅自己可见</span><time>${formatDate(item.date)}${photos.length ? `<i class="photo-total">${photos.length} 张照片</i>` : ''}</time></div>
         <h3>${escapeHTML(title)}</h3><p>${escapeHTML(body)}</p>
-        <div class="memory-meta">${location ? `<span>⌖ ${escapeHTML(location)}</span>` : ''}<span>☺ ${escapeHTML(item.mood || '平静')}</span></div>
-        <div class="card-actions"><button class="play-action" data-play="${item.id}" type="button">▶ 回忆放映</button><button class="edit-action" data-edit="${item.id}" type="button">整理相册</button><button class="delete-action" data-delete="${item.id}" type="button">删除</button></div>
+        <div class="memory-meta">${location ? `<span>⌖ ${escapeHTML(location)}</span>` : ''}<span>${escapeHTML(moodLabel(item.mood))}</span></div>
+        <div class="card-actions"><button class="play-action" data-play="${item.id}" type="button">▶ 回忆放映</button><button class="share-action" data-share="${item.id}" type="button">↗ 分享链接</button><button class="edit-action" data-edit="${item.id}" type="button">整理相册</button><button class="delete-action" data-delete="${item.id}" type="button">删除</button></div>
       </div>
     </article>`;
   }).join('');
@@ -450,17 +459,131 @@ function renderGallery(photos, title, id) {
 
 $('#archiveGrid').addEventListener('click', (event) => {
   const deleteButton = event.target.closest('[data-delete]');
+  const shareButton = event.target.closest('[data-share]');
   const editButton = event.target.closest('[data-edit]');
   const playButton = event.target.closest('[data-play]');
   if (deleteButton) {
     pendingDeleteId = deleteButton.dataset.delete;
     $('#deleteDialog').showModal();
+  } else if (shareButton) {
+    openShareDialog(shareButton.dataset.share);
   } else if (editButton) {
     openDialog(editButton.dataset.edit);
   } else if (playButton) {
     openCinema(playButton.dataset.play);
   }
 });
+
+function encodeSharePayload(payload) {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += 8192) binary += String.fromCharCode(...bytes.subarray(index, index + 8192));
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+}
+
+function decodeSharePayload(value) {
+  const normalized = value.replaceAll('-', '+').replaceAll('_', '/');
+  const binary = atob(normalized + '='.repeat((4 - normalized.length % 4) % 4));
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+function makeShareThumbnail(source) {
+  if (!source) return Promise.resolve('');
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, 480 / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', .52));
+    };
+    image.onerror = () => resolve('');
+    image.src = source;
+  });
+}
+
+async function openShareDialog(recordId) {
+  const record = currentRecords.find((item) => item.id === recordId);
+  if (!record) return;
+  const dialog = $('#shareDialog');
+  const field = $('#shareLinkInput');
+  field.value = '';
+  $('#shareStatus').textContent = '正在生成只属于这段回忆的链接…';
+  $('#copyShareLink').disabled = true;
+  $('#systemShare').disabled = true;
+  $('#systemShare').hidden = !navigator.share;
+  dialog.showModal();
+  const cover = await makeShareThumbnail(photosFor(record)[0]);
+  const payload = {
+    version: 1,
+    title: record.title || record.story || '生活的一页',
+    body: record.body || record.story || '',
+    date: record.date || '',
+    location: record.location || record.place || '',
+    mood: record.mood || '平静',
+    cover
+  };
+  field.value = `${location.origin}${location.pathname}#share=${encodeSharePayload(payload)}`;
+  $('#shareStatus').textContent = cover ? '已加入封面缩略图，原始照片不会被上传。' : '链接已准备好。';
+  $('#copyShareLink').disabled = false;
+  $('#systemShare').disabled = false;
+  if (!record.sharedAt) {
+    record.sharedAt = Date.now();
+    await put(record);
+    $('#shareCount').textContent = currentRecords.filter((item) => item.sharedAt).length;
+  }
+}
+
+function closeShareDialog() {
+  $('#shareDialog').close();
+}
+
+$('#shareClose').addEventListener('click', closeShareDialog);
+$('#shareDialog').addEventListener('click', (event) => {
+  if (event.target === $('#shareDialog')) closeShareDialog();
+});
+$('#copyShareLink').addEventListener('click', async () => {
+  const field = $('#shareLinkInput');
+  try {
+    await navigator.clipboard.writeText(field.value);
+  } catch {
+    field.select();
+    document.execCommand('copy');
+  }
+  $('#shareStatus').textContent = '链接已复制，可以发给好友了。';
+  showToast('分享链接已复制');
+});
+$('#systemShare').addEventListener('click', async () => {
+  const url = $('#shareLinkInput').value;
+  if (!url || !navigator.share) return;
+  try {
+    await navigator.share({ title: '拾光档案馆的一段回忆', text: '想和你分享一段被好好收藏的生活。', url });
+  } catch (error) {
+    if (error.name !== 'AbortError') showToast('暂时无法调起系统分享，请复制链接');
+  }
+});
+
+function renderSharedMemory() {
+  try {
+    const payload = decodeSharePayload(location.hash.slice(7));
+    if (!payload || payload.version !== 1 || typeof payload.title !== 'string') throw new Error('invalid');
+    $('#sharedTitle').textContent = payload.title || '生活的一页';
+    $('#sharedBody').textContent = payload.body || '这一刻没有留下文字，但它依然被好好收藏。';
+    $('#sharedDate').textContent = formatDate(payload.date, true);
+    $('#sharedMeta').textContent = [payload.location ? `⌖ ${payload.location}` : '', moodLabel(payload.mood)].filter(Boolean).join('　');
+    $('#sharedCover').hidden = !payload.cover;
+    if (payload.cover) $('#sharedImage').src = payload.cover;
+  } catch {
+    $('#sharedCover').hidden = true;
+    $('#sharedDate').textContent = '';
+    $('#sharedTitle').textContent = '这条分享链接无法打开';
+    $('#sharedBody').textContent = '链接可能不完整，请让分享者重新复制一次。';
+    $('#sharedMeta').textContent = '';
+  }
+}
 
 $('#deleteDialog').addEventListener('close', async () => {
   if ($('#deleteDialog').returnValue === 'confirm' && pendingDeleteId) {
@@ -498,7 +621,7 @@ function renderCinema() {
   $('#cinemaDate').textContent = formatDate(cinemaRecord.date, true);
   $('#cinemaTitle').textContent = cinemaRecord.title || cinemaRecord.story || '生活的一页';
   $('#cinemaBody').textContent = cinemaRecord.body || cinemaRecord.story || '这一刻没有留下文字，但它依然被好好收藏。';
-  const meta = [cinemaRecord.location || cinemaRecord.place ? `⌖ ${cinemaRecord.location || cinemaRecord.place}` : '', cinemaRecord.mood ? `☺ ${cinemaRecord.mood}` : ''].filter(Boolean);
+  const meta = [cinemaRecord.location || cinemaRecord.place ? `⌖ ${cinemaRecord.location || cinemaRecord.place}` : '', moodLabel(cinemaRecord.mood)].filter(Boolean);
   $('#cinemaMeta').textContent = meta.join('　');
   $('#cinemaProgress').innerHTML = photos.map((_, index) => `<button type="button" data-cinema-photo="${index}" class="${index === cinemaPhotoIndex ? 'active' : ''}" aria-label="第 ${index + 1} 张"></button>`).join('');
 }

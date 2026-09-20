@@ -12,7 +12,7 @@
   <link rel="icon" href="favicon.svg">
   <link rel="apple-touch-icon" href="app-icon.svg">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=archive-4">
+  <link rel="stylesheet" href="styles.css?v=archive-5">
 </head>
 <body>
   <main class="welcome-page" id="welcomeView">
@@ -65,7 +65,7 @@
     <section class="studio-stats" aria-label="档案统计">
       <article><span>我的记录</span><b id="memoryCount">0</b><small>篇</small></article>
       <article><span>收藏照片</span><b id="photoCount">0</b><small>张</small></article>
-      <article><span>正在分享</span><b>0</b><small>篇</small></article>
+      <article><span>分享过</span><b id="shareCount">0</b><small>篇</small></article>
       <div><svg viewBox="0 0 24 24"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg><p><b>你拥有独立使用权</b><span>记录仅保存在当前浏览器，未导出的内容只有这台设备能看到。</span></p></div>
     </section>
     <nav class="archive-toolbar" aria-label="档案视图">
@@ -92,6 +92,11 @@
     </section>
   </main>
 
+  <main class="shared-page" id="sharedView" hidden>
+    <header class="shared-header"><a class="brand" href="#home"><span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 1 3 3m-3-3a3 3 0 1 0-3 3m3-3v1M9 8a3 3 0 1 0 3 3M9 8h1m5 0a3 3 0 1 1-3 3m3-3h-1m-2 3v-1"/><circle cx="12" cy="8" r="2"/><path d="M12 10v12M12 22c4.2 0 7-1.667 7-5-4.2 0-7 1.667-7 5ZM12 22c-4.2 0-7-1.667-7-5 4.2 0 7 1.667 7 5Z"/></svg></span><span>拾光档案馆</span></a><span>一封来自时光的分享</span></header>
+    <section class="shared-memory" id="sharedMemory"><p class="shared-eyebrow">A SHARED MEMORY</p><div class="shared-cover" id="sharedCover" hidden><img id="sharedImage" alt="分享的回忆照片"></div><time id="sharedDate"></time><h1 id="sharedTitle"></h1><p id="sharedBody"></p><div class="shared-meta" id="sharedMeta"></div><a class="shared-join" href="#home">建立我的拾光档案馆</a></section>
+  </main>
+
   <dialog class="memory-dialog" id="memoryDialog">
     <form id="memoryForm">
       <button class="dialog-close" type="button" id="closeMemoryDialog" aria-label="关闭">×</button>
@@ -107,12 +112,20 @@
         <label>标题<input id="titleInput" maxlength="80" required placeholder="这一刻，发生了什么？"></label>
         <label>想记住的话<textarea id="bodyInput" maxlength="3000" rows="4" placeholder="写下那些不想忘记的细节……"></textarea></label>
         <div class="form-row"><label>日期<input id="dateInput" type="date"></label><label>地点<input id="locationInput" maxlength="80" placeholder="重庆"></label></div>
-        <label>此刻的心情<select id="moodInput"><option>平静</option><option>开心</option><option>期待</option><option>感动</option><option>疲惫</option></select></label>
+        <label>此刻的心情<select id="moodInput"><option value="平静">😌 平静</option><option value="开心">😊 开心</option><option value="期待">✨ 期待</option><option value="感动">🥹 感动</option><option value="疲惫">😮‍💨 疲惫</option><option value="崩溃大哭">😭 崩溃大哭</option></select></label>
         <fieldset class="privacy-choice"><legend>谁可以看到？</legend><label class="selected"><span class="radio-dot"></span><svg viewBox="0 0 24 24"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg><span><b>仅自己可见</b><small>保存在当前浏览器中</small></span></label></fieldset>
       </div>
       <footer><button class="studio-save" type="submit" id="memorySaveButton"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg><span>保存到我的档案</span></button></footer>
       <p class="form-status" id="formStatus" role="status"></p>
     </form>
+  </dialog>
+
+  <dialog class="share-dialog" id="shareDialog">
+    <button class="share-close" id="shareClose" type="button" aria-label="关闭分享窗口">×</button>
+    <span class="share-icon">↗</span><h2>分享这段回忆</h2><p>链接包含文字、日期和封面缩略图。任何拿到链接的人都能查看，但原图和其他档案不会被上传。</p>
+    <label>分享链接<input id="shareLinkInput" type="text" readonly></label>
+    <div class="share-dialog-actions"><button id="copyShareLink" type="button">复制链接</button><button id="systemShare" type="button">发送给好友</button></div>
+    <small id="shareStatus" role="status"></small>
   </dialog>
 
   <dialog class="crop-dialog" id="cropDialog">
@@ -141,6 +154,6 @@
     <div class="cinema-progress" id="cinemaProgress"></div>
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=archive-4" defer></script>
+  <script src="app.js?v=archive-5" defer></script>
 </body>
 </html>
