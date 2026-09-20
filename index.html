@@ -5,9 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="收藏日常、照片、足迹与写给未来的信。">
   <meta name="theme-color" content="#f7f4ee">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="拾光档案馆">
   <title>拾光档案馆｜我的生活记录</title>
   <link rel="icon" href="favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=multi-photo-1">
+  <link rel="apple-touch-icon" href="app-icon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css?v=archive-3">
 </head>
 <body>
   <main class="welcome-page" id="welcomeView">
@@ -63,23 +68,40 @@
       <article><span>正在分享</span><b>0</b><small>篇</small></article>
       <div><svg viewBox="0 0 24 24"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg><p><b>你拥有独立使用权</b><span>记录仅保存在当前浏览器，未导出的内容只有这台设备能看到。</span></p></div>
     </section>
+    <nav class="archive-toolbar" aria-label="档案视图">
+      <div class="view-switcher">
+        <button class="active" id="timelineViewButton" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/></svg>时间轴</button>
+        <button id="calendarViewButton" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>时光日历</button>
+      </div>
+      <button class="install-app" id="installAppButton" type="button" hidden><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg>安装到桌面</button>
+    </nav>
     <section class="archive-section">
       <div class="archive-title"><div><span>我的时间轴</span><h2>认真生活过的证据</h2></div><p id="archiveSummary">从第一段记忆开始</p></div>
       <div class="archive-empty" id="archiveEmpty"><div><svg viewBox="0 0 24 24"><path d="M14.5 4H9.5L7.7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.7z"/><circle cx="12" cy="13" r="3"/></svg></div><h3>你的档案馆还是空的</h3><p>上传第一张照片，写下今天想记住的事。</p><button class="studio-add" id="openFirstMemory"><svg viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/></svg>收藏第一段记忆</button></div>
       <div class="archive-grid" id="archiveGrid"></div>
       <div class="backup-actions"><button id="exportButton">导出备份</button><label>导入备份<input id="importInput" type="file" accept="application/json" hidden></label></div>
     </section>
+    <section class="calendar-section" id="calendarSection" hidden>
+      <div class="calendar-heading">
+        <div><span>MEMORY CALENDAR</span><h2>时光落在每一天</h2></div>
+        <div class="calendar-nav"><button id="calendarPrevious" type="button" aria-label="上个月">←</button><strong id="calendarMonth"></strong><button id="calendarNext" type="button" aria-label="下个月">→</button></div>
+      </div>
+      <div class="calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+      <div class="memory-calendar" id="memoryCalendar"></div>
+      <p class="calendar-tip">点击有记录的日期，就从那一天开始放映。</p>
+    </section>
   </main>
 
   <dialog class="memory-dialog" id="memoryDialog">
     <form id="memoryForm">
       <button class="dialog-close" type="button" id="closeMemoryDialog" aria-label="关闭">×</button>
-      <header><h2>收藏一段生活</h2><p>文字和照片会进入你自己的档案空间。</p></header>
+      <header><h2 id="memoryDialogTitle">收藏一段生活</h2><p id="memoryDialogHint">文字和照片会进入你自己的档案空间。</p></header>
       <div class="memory-form">
         <div class="upload-zone">
           <label class="upload-picker" for="photoInput" id="uploadPlaceholder"><svg viewBox="0 0 24 24"><path d="M16 5h6m-3-3v6M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/><circle cx="9" cy="9" r="2"/></svg><b>一次选择多张照片</b><small>支持 JPG、PNG、WebP，单张最大 8MB，最多 12 张</small></label>
           <div class="photo-preview-grid" id="photoPreviewGrid" hidden></div>
           <div class="photo-picker-actions" id="photoPickerActions" hidden><label for="photoInput">＋ 继续添加</label><span id="photoSelectionCount">已选 0 张</span></div>
+          <p class="photo-order-tip" id="photoOrderTip" hidden>拖动照片排序，第一张会成为封面；也可以用箭头调整。</p>
           <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
         </div>
         <label>标题<input id="titleInput" maxlength="80" required placeholder="这一刻，发生了什么？"></label>
@@ -88,13 +110,23 @@
         <label>此刻的心情<select id="moodInput"><option>平静</option><option>开心</option><option>期待</option><option>感动</option><option>疲惫</option></select></label>
         <fieldset class="privacy-choice"><legend>谁可以看到？</legend><label class="selected"><span class="radio-dot"></span><svg viewBox="0 0 24 24"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg><span><b>仅自己可见</b><small>保存在当前浏览器中</small></span></label></fieldset>
       </div>
-      <footer><button class="studio-save" type="submit"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg>保存到我的档案</button></footer>
+      <footer><button class="studio-save" type="submit" id="memorySaveButton"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg><span>保存到我的档案</span></button></footer>
       <p class="form-status" id="formStatus" role="status"></p>
     </form>
   </dialog>
 
   <dialog class="confirm-dialog" id="deleteDialog"><form method="dialog"><h3>删除这段记忆？</h3><p>这段记录及其照片将永久删除，无法恢复。</p><div><button value="cancel">先保留</button><button class="danger" value="confirm">确认删除</button></div></form></dialog>
+  <dialog class="cinema-dialog" id="cinemaDialog">
+    <button class="cinema-close" id="cinemaClose" type="button" aria-label="关闭放映">×</button>
+    <div class="cinema-stage">
+      <button class="cinema-arrow previous" id="cinemaPrevious" type="button" aria-label="上一张">←</button>
+      <figure><img id="cinemaImage" alt="回忆照片"><div class="cinema-counter" id="cinemaCounter"></div></figure>
+      <button class="cinema-arrow next" id="cinemaNext" type="button" aria-label="下一张">→</button>
+    </div>
+    <div class="cinema-story"><p class="cinema-date" id="cinemaDate"></p><h2 id="cinemaTitle"></h2><p id="cinemaBody"></p><div id="cinemaMeta"></div></div>
+    <div class="cinema-progress" id="cinemaProgress"></div>
+  </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=multi-photo-1" defer></script>
+  <script src="app.js?v=archive-3" defer></script>
 </body>
 </html>

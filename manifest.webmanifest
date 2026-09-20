@@ -1,0 +1,29 @@
+{
+  "name": "拾光档案馆",
+  "short_name": "拾光档案馆",
+  "description": "收藏照片、日常、足迹与每一段不想忘记的生活。",
+  "lang": "zh-CN",
+  "id": "./",
+  "start_url": "./#studio",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7f4ee",
+  "theme_color": "#245c58",
+  "icons": [
+    {
+      "src": "app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "记录此刻",
+      "short_name": "新建记录",
+      "url": "./#studio",
+      "icons": [{"src": "app-icon.svg", "sizes": "any", "type": "image/svg+xml"}]
+    }
+  ]
+}
