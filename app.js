@@ -10,6 +10,10 @@ let cinemaRecord = null;
 let cinemaPhotoIndex = 0;
 let cinemaTimer = null;
 let installPrompt = null;
+let cropPhotoIndex = null;
+let cropSourceImage = null;
+let cropPointer = null;
+const cropState = { ratio: 'original', rotation: 0, zoom: 1, x: 0, y: 0, baseScale: 1 };
 const $ = (selector) => document.querySelector(selector);
 
 function route() {
@@ -144,6 +148,7 @@ function renderSelectedPhotos() {
       <div class="photo-order-controls">
         <button type="button" data-move-photo="left" data-index="${index}" aria-label="向前移动"${index === 0 ? ' disabled' : ''}>←</button>
         <button type="button" data-cover-photo="${index}" aria-label="设为封面" title="设为封面">★</button>
+        <button type="button" data-edit-photo="${index}" aria-label="编辑裁剪第 ${index + 1} 张照片" title="编辑裁剪">✎</button>
         <button type="button" data-move-photo="right" data-index="${index}" aria-label="向后移动"${index === selectedPhotos.length - 1 ? ' disabled' : ''}>→</button>
         <button type="button" data-remove-photo="${index}" aria-label="移除第 ${index + 1} 张照片">×</button>
       </div>
@@ -160,10 +165,13 @@ function movePhoto(from, to) {
 photoPreviewGrid.addEventListener('click', (event) => {
   const removeButton = event.target.closest('[data-remove-photo]');
   const coverButton = event.target.closest('[data-cover-photo]');
+  const editButton = event.target.closest('[data-edit-photo]');
   const moveButton = event.target.closest('[data-move-photo]');
   if (removeButton) {
     selectedPhotos.splice(Number(removeButton.dataset.removePhoto), 1);
     renderSelectedPhotos();
+  } else if (editButton) {
+    openCropEditor(Number(editButton.dataset.editPhoto));
   } else if (coverButton) {
     movePhoto(Number(coverButton.dataset.coverPhoto), 0);
     showToast('已设为封面');
@@ -171,6 +179,163 @@ photoPreviewGrid.addEventListener('click', (event) => {
     const from = Number(moveButton.dataset.index);
     movePhoto(from, moveButton.dataset.movePhoto === 'left' ? from - 1 : from + 1);
   }
+});
+
+const cropDialog = $('#cropDialog');
+const cropViewport = $('#cropViewport');
+const cropPreview = $('#cropImage');
+
+function rotatedDimensions() {
+  const sideways = Math.abs(cropState.rotation % 180) === 90;
+  return {
+    width: sideways ? cropSourceImage.naturalHeight : cropSourceImage.naturalWidth,
+    height: sideways ? cropSourceImage.naturalWidth : cropSourceImage.naturalHeight
+  };
+}
+
+function cropRatioValue() {
+  if (cropState.ratio !== 'original') return Number(cropState.ratio);
+  const dimensions = rotatedDimensions();
+  return dimensions.width / dimensions.height;
+}
+
+function clampCropPosition() {
+  const dimensions = rotatedDimensions();
+  const scale = cropState.baseScale * cropState.zoom;
+  const maxX = Math.max(0, (dimensions.width * scale - cropViewport.clientWidth) / 2);
+  const maxY = Math.max(0, (dimensions.height * scale - cropViewport.clientHeight) / 2);
+  cropState.x = Math.max(-maxX, Math.min(maxX, cropState.x));
+  cropState.y = Math.max(-maxY, Math.min(maxY, cropState.y));
+}
+
+function updateCropTransform() {
+  if (!cropSourceImage) return;
+  const dimensions = rotatedDimensions();
+  cropState.baseScale = Math.max(cropViewport.clientWidth / dimensions.width, cropViewport.clientHeight / dimensions.height);
+  clampCropPosition();
+  const scale = cropState.baseScale * cropState.zoom;
+  cropPreview.style.width = `${cropSourceImage.naturalWidth}px`;
+  cropPreview.style.height = `${cropSourceImage.naturalHeight}px`;
+  cropPreview.style.transform = `translate(calc(-50% + ${cropState.x}px), calc(-50% + ${cropState.y}px)) rotate(${cropState.rotation}deg) scale(${scale})`;
+}
+
+function updateCropViewport() {
+  if (!cropSourceImage) return;
+  const ratio = cropRatioValue();
+  const maxWidth = Math.max(250, Math.min(560, innerWidth - 56));
+  const maxHeight = Math.max(220, Math.min(430, innerHeight - 330));
+  let width = maxWidth;
+  let height = width / ratio;
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = height * ratio;
+  }
+  cropViewport.style.width = `${Math.round(width)}px`;
+  cropViewport.style.height = `${Math.round(height)}px`;
+  requestAnimationFrame(updateCropTransform);
+}
+
+function setCropRatio(ratio) {
+  cropState.ratio = ratio;
+  cropState.x = 0;
+  cropState.y = 0;
+  cropDialog.querySelectorAll('[data-crop-ratio]').forEach((button) => button.classList.toggle('active', button.dataset.cropRatio === ratio));
+  updateCropViewport();
+}
+
+function openCropEditor(index) {
+  cropPhotoIndex = index;
+  cropSourceImage = new Image();
+  cropSourceImage.onload = () => {
+    cropState.ratio = 'original';
+    cropState.rotation = 0;
+    cropState.zoom = 1;
+    cropState.x = 0;
+    cropState.y = 0;
+    $('#cropZoom').value = '1';
+    cropPreview.src = cropSourceImage.src;
+    cropDialog.querySelectorAll('[data-crop-ratio]').forEach((button) => button.classList.toggle('active', button.dataset.cropRatio === 'original'));
+    cropDialog.showModal();
+    updateCropViewport();
+  };
+  cropSourceImage.src = selectedPhotos[index];
+}
+
+function closeCropEditor() {
+  cropPointer = null;
+  cropDialog.close();
+}
+
+cropViewport.addEventListener('pointerdown', (event) => {
+  cropPointer = { id: event.pointerId, startX: event.clientX, startY: event.clientY, imageX: cropState.x, imageY: cropState.y };
+  cropViewport.setPointerCapture(event.pointerId);
+  cropViewport.classList.add('dragging');
+});
+cropViewport.addEventListener('pointermove', (event) => {
+  if (!cropPointer || event.pointerId !== cropPointer.id) return;
+  cropState.x = cropPointer.imageX + event.clientX - cropPointer.startX;
+  cropState.y = cropPointer.imageY + event.clientY - cropPointer.startY;
+  updateCropTransform();
+});
+cropViewport.addEventListener('pointerup', (event) => {
+  if (cropPointer?.id === event.pointerId) cropPointer = null;
+  cropViewport.classList.remove('dragging');
+});
+cropViewport.addEventListener('pointercancel', () => {
+  cropPointer = null;
+  cropViewport.classList.remove('dragging');
+});
+
+$('#cropZoom').addEventListener('input', (event) => {
+  cropState.zoom = Number(event.target.value);
+  updateCropTransform();
+});
+cropDialog.querySelector('.crop-ratios').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-crop-ratio]');
+  if (button) setCropRatio(button.dataset.cropRatio);
+});
+
+function rotateCrop(step) {
+  cropState.rotation = (cropState.rotation + step + 360) % 360;
+  cropState.x = 0;
+  cropState.y = 0;
+  updateCropViewport();
+}
+
+$('#cropRotateLeft').addEventListener('click', () => rotateCrop(-90));
+$('#cropRotateRight').addEventListener('click', () => rotateCrop(90));
+$('#cropClose').addEventListener('click', closeCropEditor);
+$('#cropCancel').addEventListener('click', closeCropEditor);
+cropDialog.addEventListener('click', (event) => {
+  if (event.target === cropDialog) closeCropEditor();
+});
+addEventListener('resize', () => {
+  if (cropDialog.open) updateCropViewport();
+});
+
+$('#cropApply').addEventListener('click', () => {
+  if (cropPhotoIndex === null || !cropSourceImage) return;
+  const viewWidth = cropViewport.clientWidth;
+  const viewHeight = cropViewport.clientHeight;
+  const scale = cropState.baseScale * cropState.zoom;
+  const sourceWidth = viewWidth / scale;
+  const sourceHeight = viewHeight / scale;
+  const resolutionScale = Math.min(1, 1600 / Math.max(sourceWidth, sourceHeight));
+  const output = document.createElement('canvas');
+  output.width = Math.max(1, Math.round(sourceWidth * resolutionScale));
+  output.height = Math.max(1, Math.round(sourceHeight * resolutionScale));
+  const context = output.getContext('2d');
+  const outputScale = output.width / viewWidth;
+  context.fillStyle = '#f7f4ee';
+  context.fillRect(0, 0, output.width, output.height);
+  context.translate(output.width / 2 + cropState.x * outputScale, output.height / 2 + cropState.y * outputScale);
+  context.rotate(cropState.rotation * Math.PI / 180);
+  context.scale(scale * outputScale, scale * outputScale);
+  context.drawImage(cropSourceImage, -cropSourceImage.naturalWidth / 2, -cropSourceImage.naturalHeight / 2);
+  selectedPhotos[cropPhotoIndex] = output.toDataURL('image/jpeg', .88);
+  renderSelectedPhotos();
+  closeCropEditor();
+  showToast('照片已裁剪');
 });
 
 photoPreviewGrid.addEventListener('dragstart', (event) => {

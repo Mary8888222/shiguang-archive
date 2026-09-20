@@ -12,7 +12,7 @@
   <link rel="icon" href="favicon.svg">
   <link rel="apple-touch-icon" href="app-icon.svg">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=archive-3">
+  <link rel="stylesheet" href="styles.css?v=archive-4">
 </head>
 <body>
   <main class="welcome-page" id="welcomeView">
@@ -115,6 +115,20 @@
     </form>
   </dialog>
 
+  <dialog class="crop-dialog" id="cropDialog">
+    <div class="crop-heading"><div><h2>编辑照片</h2><p>拖动照片调整位置，用滑杆缩放取景。</p></div><button id="cropClose" type="button" aria-label="关闭裁剪">×</button></div>
+    <div class="crop-workspace">
+      <div class="crop-viewport" id="cropViewport"><img id="cropImage" alt="待裁剪照片"><span class="crop-grid" aria-hidden="true"></span></div>
+    </div>
+    <div class="crop-controls">
+      <div class="crop-ratios" aria-label="裁剪比例">
+        <button class="active" type="button" data-crop-ratio="original">原图</button><button type="button" data-crop-ratio="1">1:1</button><button type="button" data-crop-ratio="1.333333">4:3</button><button type="button" data-crop-ratio=".75">3:4</button><button type="button" data-crop-ratio="1.777778">16:9</button>
+      </div>
+      <div class="crop-tools"><button id="cropRotateLeft" type="button">↶ 左转</button><label>缩放 <input id="cropZoom" type="range" min="1" max="3" step=".01" value="1"></label><button id="cropRotateRight" type="button">右转 ↷</button></div>
+    </div>
+    <footer><button class="crop-cancel" id="cropCancel" type="button">取消</button><button class="crop-apply" id="cropApply" type="button">完成裁剪</button></footer>
+  </dialog>
+
   <dialog class="confirm-dialog" id="deleteDialog"><form method="dialog"><h3>删除这段记忆？</h3><p>这段记录及其照片将永久删除，无法恢复。</p><div><button value="cancel">先保留</button><button class="danger" value="confirm">确认删除</button></div></form></dialog>
   <dialog class="cinema-dialog" id="cinemaDialog">
     <button class="cinema-close" id="cinemaClose" type="button" aria-label="关闭放映">×</button>
@@ -127,6 +141,6 @@
     <div class="cinema-progress" id="cinemaProgress"></div>
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=archive-3" defer></script>
+  <script src="app.js?v=archive-4" defer></script>
 </body>
 </html>

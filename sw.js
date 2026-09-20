@@ -1,9 +1,9 @@
-const CACHE_NAME = 'shiguang-archive-v3';
+const CACHE_NAME = 'shiguang-archive-v4';
 const APP_SHELL = [
   './',
   './index.html',
-  './styles.css?v=archive-3',
-  './app.js?v=archive-3',
+  './styles.css?v=archive-4',
+  './app.js?v=archive-4',
   './favicon.svg',
   './app-icon.svg',
   './chongqing.jpg',
