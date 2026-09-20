@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="收藏日常、照片、足迹与写给未来的信。">
+  <meta name="theme-color" content="#f6f1e8">
+  <title>拾光档案馆｜我的生活记录</title>
+  <link rel="icon" href="favicon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="paper-noise" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <a class="brand" href="#home" aria-label="拾光档案馆首页">
+      <span class="brand-mark" aria-hidden="true">✿</span>
+      <span>拾光档案馆</span>
+    </a>
+    <div class="header-actions">
+      <span class="privacy-note">▣ 记录仅保存在你的设备</span>
+      <a class="outline-button" href="#studio">进入我的档案 <span>→</span></a>
+    </div>
+  </header>
+
+  <main>
+    <section class="view welcome-page" id="home" aria-labelledby="hero-title">
+      <div class="welcome-hero">
+        <div class="welcome-copy">
+          <p class="eyebrow">A LIFE ARCHIVE OF YOUR OWN</p>
+          <h1 id="hero-title">每个人，都值得拥有一座<br><em>自己的生活档案馆。</em></h1>
+          <p class="lead">写下日常，上传照片，生成只属于你的个人画面。它安静地留在这台设备里，等你在未来某天重新翻开。</p>
+          <a class="primary-button" href="#studio"><span>✦</span> 开始建立我的档案 <span>→</span></a>
+          <div class="trust-row" aria-label="特点">
+            <span>◉ 本地保存</span>
+            <span>♙ 一人一档</span>
+            <span>⇩ 随时导出</span>
+          </div>
+        </div>
+
+        <div class="welcome-visual" aria-label="生活照片示例">
+          <figure class="welcome-photo photo-one">
+            <img src="chongqing.jpg" alt="山城生活照片">
+            <figcaption>晚风绕过山城</figcaption>
+          </figure>
+          <figure class="welcome-photo photo-two">
+            <img src="picnic.jpg" alt="朋友相聚的生活照片">
+            <figcaption>和喜欢的人浪费下午</figcaption>
+          </figure>
+          <div class="welcome-ticket"><span class="ticket-icon">▧</span><b>记录此刻</b><small>照片 · 文字 · 心情 · 地点</small></div>
+        </div>
+      </div>
+
+      <div class="welcome-steps">
+        <article><span>01</span><div><b>填写与上传</b><p>记录文字、时间、心情与照片。</p></div></article>
+        <article><span>02</span><div><b>生成个人画面</b><p>每一条记录，都会加入你的时光轴。</p></div></article>
+        <article><span>03</span><div><b>珍藏与导出</b><p>默认仅在本机保存，需要时可以备份。</p></div></article>
+      </div>
+    </section>
+
+    <section class="view studio-page" id="studio" aria-labelledby="studio-title">
+      <div class="studio-heading">
+        <div>
+          <p class="eyebrow">MY PRIVATE ARCHIVE</p>
+          <h2 id="studio-title">把今天，好好收起来。</h2>
+          <p>照片和文字默认只保存在当前浏览器。清理浏览器数据前，请先导出备份。</p>
+        </div>
+        <div class="studio-tools">
+          <button class="text-button" id="exportButton" type="button">导出备份</button>
+          <label class="text-button file-import">导入备份<input id="importInput" type="file" accept="application/json" hidden></label>
+        </div>
+      </div>
+
+      <div class="studio-layout">
+        <aside class="entry-card">
+          <form id="entryForm">
+            <label class="upload-zone" id="uploadZone" for="photoInput">
+              <img id="photoPreview" alt="待上传照片预览" hidden>
+              <span class="upload-placeholder" id="uploadPlaceholder"><b>＋</b><strong>选择一张照片</strong><small>支持 JPG、PNG、WebP，自动压缩保存</small></span>
+              <input id="photoInput" name="photo" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+            </label>
+
+            <label class="field"><span>这一天发生了什么？</span><textarea id="storyInput" name="story" rows="4" maxlength="500" placeholder="写下一段想留住的话……" required></textarea><small><output id="storyCount">0</output>/500</small></label>
+
+            <div class="field-grid">
+              <label class="field"><span>日期</span><input id="dateInput" name="date" type="date" required></label>
+              <label class="field"><span>心情</span><select id="moodInput" name="mood"><option>平静</option><option>开心</option><option>温暖</option><option>期待</option><option>疲惫</option><option>难过</option></select></label>
+            </div>
+            <label class="field"><span>地点 <i>可选</i></span><input id="placeInput" name="place" type="text" maxlength="40" placeholder="例如：重庆 · 南山"></label>
+            <button class="primary-button submit-button" type="submit">收藏这段时光 <span>→</span></button>
+            <p class="form-note" id="formNote" role="status" aria-live="polite"></p>
+          </form>
+        </aside>
+
+        <div class="archive-panel">
+          <div class="archive-topline"><div><span class="eyebrow">TIMELINE</span><b><output id="recordCount">0</output> 段时光</b></div><label class="search-box">⌕<input id="searchInput" type="search" placeholder="搜索文字或地点"></label></div>
+          <div class="empty-state" id="emptyState"><span>✿</span><h3>档案馆里还很安静</h3><p>从左边放入第一段生活吧。</p></div>
+          <div class="timeline" id="timeline" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="deleteDialog">
+    <form method="dialog">
+      <span class="dialog-mark">✿</span>
+      <h3>移除这段记录？</h3>
+      <p>删除后无法恢复，除非你已有导出的备份。</p>
+      <div><button value="cancel" class="text-button">先留着</button><button value="confirm" class="danger-button">确认删除</button></div>
+    </form>
+  </dialog>
+
+  <footer>拾光档案馆 · 把普通日子，认真收藏</footer>
+  <script src="app.js" defer></script>
+</body>
+</html>
